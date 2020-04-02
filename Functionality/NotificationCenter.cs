@@ -5,6 +5,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using UnityEngine.SceneManagement;
  
 //    NotificationCenter is used for handling messages between GameObjects.
 //    GameObjects can register to receive specific notifications.  When another objects sends a notification of that type, all GameObjects that registered for it and implement the appropriate message will receive that notification.
@@ -16,8 +17,15 @@ using System;
 // This default center is what all objects will use for most notifications.  We can of course create our own separate instances of NotificationCenter, but this is the static one used by all.
 public class NotificationCenter : MonoBehaviour
 {
+
 	private static NotificationCenter defaultCenter;
-	public static NotificationCenter DefaultCenter () {
+    //Modification for setting DontDestroy
+    private static GameObject notificationObject;
+
+
+
+
+    public static NotificationCenter DefaultCenter () {
 	    // If the defaultCenter doesn't already exist, we need to create it
 	    if (!defaultCenter) {
 	        // Because the NotificationCenter is a component, we have to create a GameObject to attach it to.
@@ -34,6 +42,18 @@ public class NotificationCenter : MonoBehaviour
     {
         notifications.Clear();
     }
+
+    public void SetDontDestroy()
+    {
+        DontDestroyOnLoad(notificationObject);
+    }
+
+    public void UnsetDontDestroy()
+    {
+        SceneManager.MoveGameObjectToScene(notificationObject, SceneManager.GetActiveScene());
+    }
+
+
 
     // Our hashtable containing all the notifications.  Each notification in the hash table is an ArrayList that contains all the observers for that notification.
     public Hashtable notifications = new Hashtable();
