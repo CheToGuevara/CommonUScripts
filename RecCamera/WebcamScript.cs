@@ -6,6 +6,20 @@ using UnityEngine.UI;
 using System.IO;
 using System.Threading;
 
+/// <summary>
+/// Captures frames from a Unity camera in real time
+/// and writes them to disk using a background thread.
+/// </summary>
+/// 
+/// <description>
+/// Maximises speed and quality by reading-back raw
+/// texture data with no conversion and writing 
+/// frames in uncompressed BMP format.
+/// Created by Richard Copperwaite.
+/// GameObject needs a camera, you could put dept less than maincamera to dont disturb
+/// </description>
+/// 
+[RequireComponent(typeof(Camera))]
 public class WebcamScript : MonoBehaviour {
 
     public int maxFrames =1000; // maximum number of frames you want to record in one video
@@ -14,7 +28,7 @@ public class WebcamScript : MonoBehaviour {
     private bool recordig = false;
 
 
-    private WebCamTexture _webCamTex;
+   // private WebCamTexture _webCamTex;
     private RenderTexture tempRenderTexture;
     private Texture2D tempTexture2D;
 
@@ -61,20 +75,13 @@ public class WebcamScript : MonoBehaviour {
     // Use this for initialization
     public void StartCamera() {
 
-       
 
-        _webCamTex = new WebCamTexture();
+        //Application.targetFrameRate = frameRate;
+        //_webCamTex = new WebCamTexture();
 
-        RawImage rawImage = gameObject.GetComponent<RawImage>();
-        
-        if (rawImage)
-        {
-            
-            rawImage.texture = _webCamTex;
-        }
         /*Renderer _renderer = GetComponent<Renderer>();
 		_renderer.material.mainTexture = _webcamtex;*/
-        _webCamTex.Play();
+        //_webCamTex.Play();
 
         screenWidth = 640;
         screenHeight = 360;
@@ -102,18 +109,14 @@ public class WebcamScript : MonoBehaviour {
         encoderThread.Start();
     }
 
-    private void Update()
-    {
-        if (recordig)
-            RenderLoop();
-    }
+    
 
     void DestroyCamera()
     {
 
 
-        if (_webCamTex)
-            _webCamTex.Stop();
+        /*if (_webCamTex)
+            _webCamTex.Stop();*/
     }
 
     private void OnDestroy()
@@ -121,43 +124,46 @@ public class WebcamScript : MonoBehaviour {
         DestroyCamera();
     }
 
-    void RenderLoop()
+    void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
+        
         if (frameNumber <= maxFrames)
         {
-
-            // Check if render target size has changed, if so, terminate
-
-
-            // Calculate number of video frames to produce from this game frame
-            // Generate 'padding' frames if desired framerate is higher than actual framerate
-            float thisFrameTime = Time.time;
-            int framesToCapture = ((int)(thisFrameTime / captureFrameTime)) - ((int)(lastFrameTime / captureFrameTime));
-
-            // Capture the frame
-            if (framesToCapture > 0)
+            if (recordig)
             {
-                Graphics.Blit(_webCamTex, tempRenderTexture);
+                // Check if render target size has changed, if so, terminate
 
-                RenderTexture.active = tempRenderTexture;
-                tempTexture2D.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
-                RenderTexture.active = null;
-            }
 
-            // Add the required number of copies to the queue
-            for (int i = 0; i < framesToCapture && frameNumber <= maxFrames; ++i)
-            {
-                frameQueue.Enqueue(tempTexture2D.GetRawTextureData());
+                // Calculate number of video frames to produce from this game frame
+                // Generate 'padding' frames if desired framerate is higher than actual framerate
+                float thisFrameTime = Time.time;
+                int framesToCapture = ((int)(thisFrameTime / captureFrameTime)) - ((int)(lastFrameTime / captureFrameTime));
 
-                frameNumber++;
-
-                if (frameNumber % frameRate == 0)
+                // Capture the frame
+                if (framesToCapture > 0)
                 {
-                    print("Frame " + frameNumber);
-                }
-            }
+                    Graphics.Blit(source, tempRenderTexture);
 
-            lastFrameTime = thisFrameTime;
+                    RenderTexture.active = tempRenderTexture;
+                    tempTexture2D.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
+                    RenderTexture.active = null;
+                }
+
+                // Add the required number of copies to the queue
+                for (int i = 0; i < framesToCapture && frameNumber <= maxFrames; ++i)
+                {
+                    frameQueue.Enqueue(tempTexture2D.GetRawTextureData());
+
+                    frameNumber++;
+
+                    if (frameNumber % frameRate == 0)
+                    {
+                        print("Frame " + frameNumber);
+                    }
+                }
+
+                lastFrameTime = thisFrameTime;
+            }
 
         }
         else //keep making screenshots until it reaches the max frame amount
@@ -169,6 +175,8 @@ public class WebcamScript : MonoBehaviour {
             this.enabled = false;
         }
 
+
+        Graphics.Blit(source, destination);
 
     }
 
@@ -195,6 +203,7 @@ public class WebcamScript : MonoBehaviour {
                 using (FileStream fileStream = new FileStream(path, FileMode.Create))
                 {
                     BitmapEncoder.WriteBitmap(fileStream, screenWidth, screenHeight, frameQueue.Dequeue());
+                    //BitmapEncoder.WriteArray(fileStream, frameQueue.Dequeue());
                     fileStream.Close();
                 }
 
@@ -258,6 +267,18 @@ class BitmapEncoder
                 bw.Write(imageData[imageIdx + 0]);
                 bw.Write((byte)255);
             }
+
+        }
+    }
+
+    public static void WriteArray(Stream stream, byte[] imageData)
+    {
+        using (BinaryWriter bw = new BinaryWriter(stream))
+        {
+
+            
+                bw.Write(imageData);
+                
 
         }
     }
